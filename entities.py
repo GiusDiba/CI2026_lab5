@@ -5,7 +5,8 @@ NAMES_MAP = {
     "pit": "breeze",
     "gold": "glitter",
     "free": None,
-    "adventurer": None
+    "adventurer": None,
+    "gold": None
 }
 
 MOVES_EFFECTS = {
@@ -74,3 +75,6 @@ class Adventurer(Entity):
         if self.arrows_amt > 0:
             self.arrows_amt -= 1
 
+class Gold(Entity):
+    def __init__(self, row: int, col: int):
+        super().__init__("gold", row, col)
