@@ -50,12 +50,17 @@ class FreeCell(Entity):
         super().__init__("free", row, col)
         self.symbol = "#"
 
+class Gold(Entity):
+    def __init__(self, row: int, col: int):
+        super().__init__("gold", row, col)
+        self.symbol = "G"
+
 class Adventurer(Entity):
 
     arrows_amt: int
     facing: deque
 
-    def __init__(self, row: int, col: int, arrows: int, facing: str = "north"):
+    def __init__(self, row: int, col: int, arrows: int = 1, facing: str = "north"):
         super().__init__("adventurer", row, col)
         self.arrows_amt = arrows
         self.symbol = "A"
@@ -84,7 +89,3 @@ class Adventurer(Entity):
     def shoot(self) -> None:
         if self.arrows_amt > 0:
             self.arrows_amt -= 1
-
-class Gold(Entity):
-    def __init__(self, row: int, col: int):
-        super().__init__("gold", row, col)
