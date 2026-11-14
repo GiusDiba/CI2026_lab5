@@ -1,20 +1,54 @@
 from entities import Entity, Wumpus, FreeCell, Pit, Adventurer, Gold
 
 class Cell():
-    effects: set[str] 
+    effects: dict
     entities: list[Entity]
     symbol: str
 
     def __init__(self, entity: Entity):
         self.entities = [entity]
-        self.effects = set(entity.getSideEffect()) if entity.getSideEffect() is not None else set()
+        self.effects = {}
+        if entity.getSideEffect() is not None:
+            self.effects[entity.getSideEffect()] = 1
         self.symbol = entity.symbol
 
-    def addEffect(self, effect: str):
-        self.effects.add(effect)
+    def addEffect(self, effect: str) -> None:
+        if effect in self.effects.keys():
+            self.effects[effect] += 1
+        else:
+            self.effects[effect] = 1
 
-    def removeEffect(self, effect: str):
-        self.effects.discard(effect)
+    def removeEffect(self, effect: str, amt: int = 1) -> None:
+        if effect in self.effects.keys():
+            self.effects[effect] -= amt
+
+    def addEntity(self, entity: Entity) -> None:
+        self.entities.append(entity)
+        self.symbol = entity.symbol
+        if entity.getSideEffect() is not None:
+            self.addEffect(entity.getSideEffect())
+
+    def removeEntities(self, entity_type: type, max_ent: int = 1) -> list[Entity]:
+        idx = []
+        removed = []
+        for i, e in enumerate(self.entities):
+            if isinstance(e, entity_type):
+                idx.append(i)
+        if len(idx) != 0:
+            count = 0
+            for i in idx:
+                while count < max_ent:
+                    popped = self.entities.pop(i)
+                    removed.append(popped)
+                    count += 1
+                    if count == len(idx):
+                        self.removeEffect(popped.getSideEffect())
+                        break
+
+        self.symbol = self.entities[-1].symbol
+        return removed
+        
+
 
 class Map():
 
@@ -24,6 +58,7 @@ class Map():
     wumpus_list: list[Cell]
     pit_list: list[Cell]
     gold_list: list[Cell]
+    adventurer: Adventurer
     
 
     # Initializes an empty board
@@ -40,6 +75,28 @@ class Map():
 
         return brd
 
-    #def addWumpus(self, row, col):
+    def insertEntity(self, entity: Entity) -> None:
+        row, col = entity.position
+        self.board[row][col].addEntity(entity)
+        if isinstance(entity, Wumpus) or isinstance(entity, Pit):
+            for idx in {-1, 1}:
+                if row + idx >= 0 and row + idx < self.shape[1]:
+                    self.board[row + idx][col].addEffect(entity.getSideEffect())
+                if col + idx >= 0 and col + idx < self.shape[0]:
+                    self.board[row][col + idx].addEffect(entity.getSideEffect())
+
+    def removeEntities(self, entity: type, row: int, col: int, amt: int = 1) -> None:
+        removed = self.board[row][col].removeEntities(entity)
+        amt_removed = len(removed)
+        if amt_removed > 0:
+            ent = removed[0]
+            if isinstance(ent, Wumpus) or isinstance(ent, Pit):
+                for idx in {-1, 1}:
+                    if row + idx >= 0 and row + idx < self.shape[1]:
+                        self.board[row + idx][col].removeEffect(ent.getSideEffect(), amt_removed)
+                    if col + idx >= 0 and col + idx < self.shape[0]:
+                        self.board[row][col + idx].removeEffect(ent.getSideEffect(), amt_removed)
+            
+
 
 
