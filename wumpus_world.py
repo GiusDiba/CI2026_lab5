@@ -1,4 +1,4 @@
-from entities import Entity, Wumpus, FreeCell, Pit, Adventurer, Gold
+from entities import Entity, Wumpus, FreeCell, Pit, Adventurer, Gold, EnvironmentMessage
 
 class Cell():
     effects: dict
@@ -65,6 +65,9 @@ class Map():
     def __init__(self, width: int, height: int):
         self.shape = (width, height)
         self.board = [[ Cell(FreeCell(row, col)) for col in range(width)] for row in range(height)]
+        self.wumpus_list = []
+        self.pit_list = []
+        self.gold_list = []
 
     def __str__(self) -> str:
         brd = ""
@@ -85,7 +88,7 @@ class Map():
                 if col + idx >= 0 and col + idx < self.shape[0]:
                     self.board[row][col + idx].addEffect(entity.getSideEffect())
 
-    def removeEntities(self, entity: type, row: int, col: int, amt: int = 1) -> None:
+    def removeEntities(self, entity: type, row: int, col: int, amt: int = 1) -> list[Entity]:
         removed = self.board[row][col].removeEntities(entity)
         amt_removed = len(removed)
         if amt_removed > 0:
@@ -96,6 +99,39 @@ class Map():
                         self.board[row + idx][col].removeEffect(ent.getSideEffect(), amt_removed)
                     if col + idx >= 0 and col + idx < self.shape[0]:
                         self.board[row][col + idx].removeEffect(ent.getSideEffect(), amt_removed)
+        return removed
+
+    def addAdventurer(self, row: int = 3, col: int = 0, arrows: int = 1, facing: str = "north"):
+        adv = Adventurer(row, col, arrows, facing)
+        self.insertEntity(adv)
+        self.adventurer = adv
+    
+    def addPit(self, row: int, col: int):
+        pit = Pit(row, col)
+        self.insertEntity(Pit(row, col))
+        self.pit_list.append(pit)
+
+    def addWumpus(self, row: int, col: int):
+        wum = Wumpus(row, col)
+        self.insertEntity(wum)
+        self.wumpus_list.append(wum)
+
+    def addGold(self, row: int, col: int):
+        gld = Gold(row, col)
+        self.insertEntity(gld)
+        self.gold_list.append(gld)
+
+    def takeGold(self, row: int, col: int):
+        removed = self.removeEntities(Gold, row, col)
+        for r in removed:
+            self.gold_list.remove(r)
+
+    def slayWumpus(self, row: int, col: int):
+        wum = self.removeEntities(Wumpus, row, col)
+        if len(wum) != 0:
+            for w in wum:
+                self.wumpus_list.remove(w)
+                [[ cell.addEffect(EnvironmentMessage.scream.value) for cell in row] for row in self.board]
             
 
 
