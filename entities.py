@@ -48,7 +48,7 @@ class Pit(Entity):
 class FreeCell(Entity):
     def __init__(self, row: int, col: int):
         super().__init__("free", row, col)
-        self.symbol = "#"
+        self.symbol = "."
 
 class Gold(Entity):
     def __init__(self, row: int, col: int):
@@ -63,16 +63,16 @@ class Adventurer(Entity):
     def __init__(self, row: int, col: int, arrows: int = 1, facing: str = "north"):
         super().__init__("adventurer", row, col)
         self.arrows_amt = arrows
-        self.symbol = "A"
+        self.symbol = "^"
 
         # The actual direction the adventurer is facing is the one at index 0
-        self.facing = deque(["north","east","south","west"])
+        self.facing = deque([("north", "^"),("east", ">"),("south", "v"),("west", "<")])
 
     def __str__(self) -> str:
         return super().__str__() + f" facing {self.facing[0]}"
 
     def advance(self) -> None:
-        effects = MovesEffects[self.facing[0]].value
+        effects = MovesEffects[self.facing[0][0]].value
         self.position = (self.position[0] + effects[0], self.position[1] + effects[1])
 
     def getFacingDirection(self) -> str:
@@ -85,6 +85,7 @@ class Adventurer(Entity):
             self.facing.rotate(1)
         else:
             return
+        self.symbol = self.facing[0][1]
         
     def shoot(self) -> None:
         if self.arrows_amt > 0:

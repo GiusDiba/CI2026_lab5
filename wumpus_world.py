@@ -47,6 +47,9 @@ class Cell():
 
         self.symbol = self.entities[-1].symbol
         return removed
+
+    def updateCellSymbol(self):
+        self.symbol = self.entities[-1].symbol
         
 
 
@@ -132,7 +135,17 @@ class Map():
             for w in wum:
                 self.wumpus_list.remove(w)
                 [[ cell.addEffect(EnvironmentMessage.scream.value) for cell in row] for row in self.board]
-            
 
+    def advance(self) -> None:
+        old_pos = self.adventurer.position
+        self.adventurer.advance()
+
+        self.removeEntities(Adventurer, old_pos[0], old_pos[1])
+        self.insertEntity(self.adventurer)
+
+    def rotate(self, direction: str) -> None:
+        adv = self.adventurer
+        adv.rotate(direction)
+        self.board[adv.position[0]][adv.position[1]].updateCellSymbol()
 
 
