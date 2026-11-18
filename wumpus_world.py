@@ -22,6 +22,10 @@ class Cell():
         if effect in self.effects.keys():
             self.effects[effect] -= amt
 
+    def deleteEffect(self, effect: EnvironmentMessage) -> None:
+        if effect in self.effects.keys():
+            self.effects[effect] = 0
+
     def addEntity(self, entity: Entity) -> None:
         self.entities.append(entity)
         self.symbol = entity.symbol
@@ -136,20 +140,37 @@ class Map():
                 self.wumpus_list.remove(w)
                 [[ cell.addEffect(EnvironmentMessage.scream.value) for cell in row] for row in self.board]
 
+            for row in self.board:
+                for cell in row:
+                    cell.deleteEffect(EnvironmentMessage.wumpus.value)
+
+            for _, prox in self.adventurer.memory.items():
+                    for _, v in prox.nearby_effects.items():
+                        v.discard(EnvironmentMessage.wumpus.value)
+
     def advance(self) -> None:
         old_pos = self.adventurer.position
+        old_sen = self.adventurer.sensations
         self.adventurer.advance()
         new_pos = self.adventurer.position
 
         if (new_pos[0] < 0) or (new_pos[1] >= self.shape[0]) or (new_pos[1] < 0) or (new_pos[1] >= self.shape[1]):
             self.adventurer.position = old_pos
             self.adventurer.addSensation(EnvironmentMessage.wall.value)
+            self.adventurer.memory[old_pos].discardLegalMove(self.adventurer.getFacingDirection())
+            self.adventurer.memorizeCloseSensations(old_pos, self.adventurer.getFacingDirection(), self.adventurer.sensations)
+
         else:
             self.removeEntities(Adventurer, old_pos[0], old_pos[1])
             self.insertEntity(self.adventurer)
             self.sense()
+            self.adventurer.memorizeCloseSensations(old_pos, self.adventurer.getFacingDirection(), self.adventurer.sensations)
+            if self.adventurer.isNewMemory(new_pos):
+                self.adventurer.addMemory(new_pos)
+            self.adventurer.updateCurrentCloseSensation(old_sen)
+        
         print(self)
-        print(self.adventurer.sensations)
+        print(f"ADVENTURER: I can feel {self.adventurer.sensations}")
 
     def rotate(self, direction: str) -> None:
         adv = self.adventurer
