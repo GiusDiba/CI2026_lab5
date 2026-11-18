@@ -139,13 +139,28 @@ class Map():
     def advance(self) -> None:
         old_pos = self.adventurer.position
         self.adventurer.advance()
+        new_pos = self.adventurer.position
 
-        self.removeEntities(Adventurer, old_pos[0], old_pos[1])
-        self.insertEntity(self.adventurer)
+        if (new_pos[0] < 0) or (new_pos[1] >= self.shape[0]) or (new_pos[1] < 0) or (new_pos[1] >= self.shape[1]):
+            self.adventurer.position = old_pos
+            self.adventurer.addSensation(EnvironmentMessage.wall.value)
+        else:
+            self.removeEntities(Adventurer, old_pos[0], old_pos[1])
+            self.insertEntity(self.adventurer)
+            self.sense()
+        print(self.adventurer.sensations)
 
     def rotate(self, direction: str) -> None:
         adv = self.adventurer
         adv.rotate(direction)
         self.board[adv.position[0]][adv.position[1]].updateCellSymbol()
 
+    def sense(self) -> set:
+        adv = self.adventurer
 
+        to_add = set()
+        for k, v in self.board[adv.position[0]][adv.position[1]].effects.items():
+            if v > 0:
+                to_add.add(k)
+        adv.setSensations(to_add)
+        return to_add

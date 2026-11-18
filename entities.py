@@ -59,11 +59,13 @@ class Adventurer(Entity):
 
     arrows_amt: int
     facing: deque
+    sensations: set
 
     def __init__(self, row: int, col: int, arrows: int = 1, facing: str = "north"):
         super().__init__("adventurer", row, col)
         self.arrows_amt = arrows
         self.symbol = "^"
+        self.sensations = set()
 
         # The actual direction the adventurer is facing is the one at index 0
         self.facing = deque([("north", "^"),("east", ">"),("south", "v"),("west", "<")])
@@ -90,3 +92,9 @@ class Adventurer(Entity):
     def shoot(self) -> None:
         if self.arrows_amt > 0:
             self.arrows_amt -= 1
+
+    def setSensations(self, sensations: set) -> None:
+        self.sensations = sensations
+
+    def addSensation(self, sensation: EnvironmentMessage) -> None:
+        self.sensations.add(EnvironmentMessage.wall.value)
