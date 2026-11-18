@@ -148,12 +148,14 @@ class Map():
             self.removeEntities(Adventurer, old_pos[0], old_pos[1])
             self.insertEntity(self.adventurer)
             self.sense()
+        print(self)
         print(self.adventurer.sensations)
 
     def rotate(self, direction: str) -> None:
         adv = self.adventurer
         adv.rotate(direction)
         self.board[adv.position[0]][adv.position[1]].updateCellSymbol()
+        print(self)
 
     def sense(self) -> set:
         adv = self.adventurer
