@@ -108,14 +108,15 @@ def gold_found(messages: set, wrld: Map, *_) -> set:
     wrld.takeGold(pos[0], pos[1])
     wrld.adventurer.takeGold()
     env_messages = wrld.adventurer.sensations.copy()
+    messages = env_messages
     messages.add(LCSMessages.gold.value)
     messages.add(LCSMessages.tracking.value)
     return messages.union(env_messages)
 
 # 1.5 - If I have gold, I just have to backtrack
 def got_gold(messages: set, wrld: Map, ariadnes_thread: list[Directions]) -> set:
-    direction = {ariadnes_thread.pop()}
-    rotate_and_move(direction, wrld)
+    direction = ariadnes_thread.pop()
+    rotate_and_move({direction}, wrld)
     env_messages = wrld.adventurer.sensations.copy()
     messages = env_messages
     return messages.union({LCSMessages.gold.value, LCSMessages.tracking.value})
