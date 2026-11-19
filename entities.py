@@ -12,6 +12,7 @@ class EnvironmentMessage(Enum):
     adventurer = None
     free = None
     exit_loc = "exit"
+    death = "death"
 
 class MovesEffects(Enum):
     north = (-1, 0)
@@ -76,6 +77,7 @@ class Exit(Entity):
 class ProximitySensations():
     nearby_effects: dict
     obstacle: bool
+    visits_amt: int
     legal_moves = set[Directions]
     felt: set
 
@@ -89,6 +91,7 @@ class ProximitySensations():
         self.legal_moves = {Directions.north.value, Directions.south.value, Directions.east.value, Directions.west.value}
         self.obstacle = obst
         felt: set()
+        self.visits_amt = 1
 
     def __str__(self) -> str:
         return felt.__str__()
@@ -107,6 +110,9 @@ class ProximitySensations():
 
     def addNearbyEffects(self, direction: Directions, effects: set[EnvironmentMessage]):
         self.nearby_effects[direction] = self.nearby_effects[direction].union(effects)
+
+    def visit(self):
+        self.visits_amt += 1
 
 
 class Adventurer(Entity):
@@ -140,7 +146,11 @@ class Adventurer(Entity):
         self.sensations.discard(EnvironmentMessage.scream.value)
         self.memory[self.position].felt = self.sensations
         self.position = (self.position[0] + effects[0], self.position[1] + effects[1])
-        self.memory[self.position] = ProximitySensations()
+        if self.position not in self.memory.keys():
+            self.memory[self.position] = ProximitySensations()
+        else:
+            self.memory[self.position].visit()
+        
 
     def getFacingDirection(self) -> str:
         return self.facing[0][0]

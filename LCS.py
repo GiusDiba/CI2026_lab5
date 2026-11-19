@@ -60,15 +60,26 @@ def check_side(start: tuple[int], middle: tuple[int], end: tuple[int], adv: Adve
 def find_legal_actions(can_move_to: set, wrld: Map) -> set:
     for direction, pos in wrld.adventurer.getAdjacent().items():
         if pos in wrld.adventurer.memory.keys():
-            if not wrld.addAdventurer.memory[pos].isObstacle():
+            if not wrld.adventurer.memory[pos].isObstacle():
                 can_move_to.add(direction)
+        else:
+            can_move_to.add(direction)
     return can_move_to
 
 def rotate_and_move(can_move_to: set, wrld: Map):
     rotation_direction = choice(("left","right"))
-    while wrld.adventurer.getFacingDirection() not in can_move_to:
+    print(f"Legal directions: {can_move_to}")
+    direction = choice(tuple(can_move_to))
+    while wrld.adventurer.getFacingDirection() != direction:
         wrld.rotate(rotation_direction)
+    print(f"Moving {wrld.adventurer.getFacingDirection()}")
     wrld.advance()
+
+def find_prev_cell_visits(wrld: Map) -> int:
+    adj = wrld.adventurer.getAdjacent()
+    prev = wrld.adventurer.memory[adj[OppositeDirections[wrld.adventurer.getFacingDirection()].value]].visits_amt
+    print(f"Previous cell visited {prev} times")
+    return prev
 
 ### ALL ACTIONS ###
 
@@ -86,7 +97,7 @@ def exit_found(wrld: Map, ariadnes_thread: list[Directions]) -> set:
 
 # 1
 def gold_found(wrld: Map, *_) -> set:
-    pos = wrld.addAdventurer.position
+    pos = wrld.adventurer.position
     wrld.takeGold(pos[0], pos[1])
     wrld.adventurer.takeGold()
     return LCSMessages.gold.value
@@ -112,7 +123,10 @@ def clear_advance(wrld: Map, *_) -> set:
 
 # 4
 def breeze_advance(wrld: Map, *_) -> set:
-    can_move_to = find_legal_actions(set(), wrld)
+    if find_prev_cell_visits(wrld) > 1:
+        can_move_to = find_legal_actions(set(), wrld)
+    else:
+        can_move_to = {OppositeDirections[wrld.adventurer.getFacingDirection()].value}
     rotate_and_move(can_move_to, wrld)
     return wrld.adventurer.sensations
     
@@ -125,24 +139,24 @@ def stench_advance(wrld: Map, *_) -> set:
     if wrld.adventurer.hasArrows():
         sides = {
             Directions.north.value: {
-                middle: adj[Directions.north.value],
-                start: (adj[Directions.north.value][0], adj[Directions.north.value][1] - 1),
-                end: (adj[Directions.north.value][0], adj[Directions.north.value][1] + 1)
+                "middle": adj[Directions.north.value],
+                "start": (adj[Directions.north.value][0], adj[Directions.north.value][1] - 1),
+                "end": (adj[Directions.north.value][0], adj[Directions.north.value][1] + 1)
             },
             Directions.east.value: {
-                middle: adj[Directions.east.value],
-                start: (adj[Directions.east.value][0] -1, adj[Directions.east.value][1]),
-                end: (adj[Directions.east.value][0] + 1, adj[Directions.east.value][1])
+                "middle": adj[Directions.east.value],
+                "start": (adj[Directions.east.value][0] -1, adj[Directions.east.value][1]),
+                "end": (adj[Directions.east.value][0] + 1, adj[Directions.east.value][1])
             },
             Directions.south.value: {
-                middle: adj[Directions.north.value],
-                start: (adj[Directions.north.value][0], adj[Directions.north.value][1] - 1),
-                end: (adj[Directions.north.value][0], adj[Directions.north.value][1] + 1)
+                "middle": adj[Directions.north.value],
+                "start": (adj[Directions.north.value][0], adj[Directions.north.value][1] - 1),
+                "end": (adj[Directions.north.value][0], adj[Directions.north.value][1] + 1)
             },
             Directions.west.value: {
-                middle: adj[Directions.east.value],
-                start: (adj[Directions.east.value][0] -1, adj[Directions.east.value][1]),
-                end: (adj[Directions.east.value][0] + 1, adj[Directions.east.value][1])
+                "middle": adj[Directions.east.value],
+                "start": (adj[Directions.east.value][0] -1, adj[Directions.east.value][1]),
+                "end": (adj[Directions.east.value][0] + 1, adj[Directions.east.value][1])
             }
         }
 
@@ -169,23 +183,32 @@ def stench_advance(wrld: Map, *_) -> set:
                 #         rule.action(wrld)
                 #         return  
                 return messages
-    else: # Otherwise, I just do the same thing as the breezeRule
-        can_move_to = find_legal_actions(set())
+    # Otherwise, I just do the same thing as the breezeRule
+    if find_prev_cell_visits(wrld) > 1:
+        can_move_to = find_legal_actions(set(), wrld)
+    else:
+        can_move_to = {OppositeDirections[wrld.adventurer.getFacingDirection()].value}
         rotate_and_move(can_move_to, wrld)
-        return wrld.adventurer.sensations
+    return wrld.adventurer.sensations
 
-def terminate():
-    return LCSMessages.end.value
+def terminate(*_):
+    return {LCSMessages.end.value}
 
 ### RULES ###
 
 # Messages generated by the classifier
 class LCSMessages(Enum):
-    end = "END",
-    track = "TRACK",
+    end = "END"
+    track = "TRACK"
     gold = "GOLD"
 
 class LCS():
+
+    deathRule = Classifier(
+        condition = {EnvironmentMessage.death.value},
+        action = terminate
+    )
+
     terminateRule = Classifier(
         condition = {LCSMessages.end.value},
         action =  terminate
@@ -243,6 +266,7 @@ class LCS():
 
     def __init__(self, wrld: Map):
         self.ruleset = [
+            self.deathRule,
             self.terminateRule,
             self.exitRule,
             self.trackRule,
@@ -257,9 +281,15 @@ class LCS():
         self.ariadnes_thread = []
         self.wrld = wrld
         self.message_bucket = wrld.adventurer.sensations
+        print("ALL CONDITIONS:")
+        for rule in self.ruleset:
+            print(f"{self.ruleset.index(rule)}: {rule.condition}")
 
     def singleStep(self):
+        print(f"MESSAGE BUCKET: {self.message_bucket}")
         for rule in self.ruleset:
             if rule.matches(self.message_bucket):
+                print(f"APPLYING RULE: {self.ruleset.index(rule)} => {rule.condition}")
                 self.message_bucket = rule.action(self.wrld, self.ariadnes_thread)
+                print(f"MESSAGE BUCKET IS NOW: {self.message_bucket}")
                 return

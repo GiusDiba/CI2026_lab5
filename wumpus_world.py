@@ -105,8 +105,10 @@ class Map():
                 for idx in {-1, 1}:
                     if row + idx >= 0 and row + idx < self.shape[1]:
                         self.board[row + idx][col].removeEffect(ent.getSideEffect(), amt_removed)
+                        self.board[row + idx][col].removeEffect(EnvironmentMessage.death.value, amt_removed)
                     if col + idx >= 0 and col + idx < self.shape[0]:
                         self.board[row][col + idx].removeEffect(ent.getSideEffect(), amt_removed)
+                        self.board[row + idx][col].removeEffect(EnvironmentMessage.death.value, amt_removed)
         return removed
 
     def addAdventurer(self, row: int = 3, col: int = 0, arrows: int = 1, facing: str = "north"):
@@ -118,11 +120,13 @@ class Map():
     def addPit(self, row: int, col: int):
         pit = Pit(row, col)
         self.insertEntity(Pit(row, col))
+        self.board[row][col].addEffect(EnvironmentMessage.death.value)
         self.pit_list.append(pit)
 
     def addWumpus(self, row: int, col: int):
         wum = Wumpus(row, col)
         self.insertEntity(wum)
+        self.board[row][col].addEffect(EnvironmentMessage.death.value)
         self.wumpus_list.append(wum)
 
     def addGold(self, row: int, col: int):
@@ -168,7 +172,7 @@ class Map():
         new_pos = self.adventurer.position
 
         # If true => I've hit a wall
-        if (new_pos[0] < 0) or (new_pos[1] >= self.shape[0]) or (new_pos[1] < 0) or (new_pos[1] >= self.shape[1]):
+        if (new_pos[0] < 0) or (new_pos[0] >= self.shape[0]) or (new_pos[1] < 0) or (new_pos[1] >= self.shape[1]):
             self.adventurer.position = old_pos
             self.adventurer.addSensation(EnvironmentMessage.wall.value)
             # TODO in LCS
