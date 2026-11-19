@@ -1,4 +1,4 @@
-from entities import Entity, Wumpus, FreeCell, Pit, Adventurer, Gold, EnvironmentMessage
+from entities import Entity, Wumpus, FreeCell, Pit, Adventurer, Gold, EnvironmentMessage, MovesEffects
 
 class Cell():
     effects: dict
@@ -66,6 +66,7 @@ class Map():
     pit_list: list[Cell]
     gold_list: list[Cell]
     adventurer: Adventurer
+    is_slain = False
     
 
     # Initializes an empty board
@@ -112,6 +113,7 @@ class Map():
         adv = Adventurer(row, col, arrows, facing)
         self.insertEntity(adv)
         self.adventurer = adv
+        self.sense()
     
     def addPit(self, row: int, col: int):
         pit = Pit(row, col)
@@ -132,6 +134,13 @@ class Map():
         removed = self.removeEntities(Gold, row, col)
         for r in removed:
             self.gold_list.remove(r)
+        self.sense()
+
+    def shoot(self):
+        eff = MovesEffects[self.adventurer.getFacingDirection()].value
+        row = self.adventurer.position[0] + eff[0]
+        col = self.adventurer.positino[1] + eff[1]
+        slayWumpus(row, col)
 
     def slayWumpus(self, row: int, col: int):
         wum = self.removeEntities(Wumpus, row, col)
@@ -139,14 +148,18 @@ class Map():
             for w in wum:
                 self.wumpus_list.remove(w)
                 [[ cell.addEffect(EnvironmentMessage.scream.value) for cell in row] for row in self.board]
+            self.sense()
+            [[ cell.deleteEffect(EnvironmentMessage.scream.value) for cell in row] for row in self.board]
 
+            # TODO: fix if other wumpuses are added
             for row in self.board:
                 for cell in row:
                     cell.deleteEffect(EnvironmentMessage.wumpus.value)
 
-            for _, prox in self.adventurer.memory.items():
-                    for _, v in prox.nearby_effects.items():
-                        v.discard(EnvironmentMessage.wumpus.value)
+            # TODO in LCS
+            #for _, prox in self.adventurer.memory.items():
+            #        for _, v in prox.nearby_effects.items():
+            #            v.discard(EnvironmentMessage.wumpus.value)
 
     def advance(self) -> None:
         old_pos = self.adventurer.position
@@ -154,20 +167,25 @@ class Map():
         self.adventurer.advance()
         new_pos = self.adventurer.position
 
+        # If true => I've hit a wall
         if (new_pos[0] < 0) or (new_pos[1] >= self.shape[0]) or (new_pos[1] < 0) or (new_pos[1] >= self.shape[1]):
             self.adventurer.position = old_pos
             self.adventurer.addSensation(EnvironmentMessage.wall.value)
-            self.adventurer.memory[old_pos].discardLegalMove(self.adventurer.getFacingDirection())
-            self.adventurer.memorizeCloseSensations(old_pos, self.adventurer.getFacingDirection(), self.adventurer.sensations)
+            # TODO in LCS
+            #self.adventurer.memory[old_pos].discardLegalMove(self.adventurer.getFacingDirection())
+            #self.adventurer.memorizeCloseSensations(old_pos, self.adventurer.getFacingDirection(), self.adventurer.sensations)
 
+        # Else: i've advanced safely
         else:
             self.removeEntities(Adventurer, old_pos[0], old_pos[1])
             self.insertEntity(self.adventurer)
             self.sense()
-            self.adventurer.memorizeCloseSensations(old_pos, self.adventurer.getFacingDirection(), self.adventurer.sensations)
-            if self.adventurer.isNewMemory(new_pos):
-                self.adventurer.addMemory(new_pos)
-            self.adventurer.updateCurrentCloseSensation(old_sen)
+
+            # Update adventurer's memory: TODO in LCS
+            #self.adventurer.memorizeCloseSensations(old_pos, self.adventurer.getFacingDirection(), self.adventurer.sensations)
+            #if self.adventurer.isNewMemory(new_pos):
+            #    self.adventurer.addMemory(new_pos)
+            #self.adventurer.updateCurrentCloseSensation(old_sen)
         
         print(self)
         print(f"ADVENTURER: I can feel {self.adventurer.sensations}")
