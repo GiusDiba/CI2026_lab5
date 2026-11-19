@@ -84,55 +84,76 @@ def find_prev_cell_visits(wrld: Map) -> int:
 ### ALL ACTIONS ###
 
 # 0
-def exit_found(wrld: Map, ariadnes_thread: list[Directions]) -> set:
+def exit_found(messages: set, wrld: Map, ariadnes_thread: list[Directions]) -> set:
     if wrld.adventurer.hasGold():
-        return LCSMessages.end.value
-    elif wrld.adventurer.exit_loc is None:
-        wrld.adventurer.exit_loc = wrld.adventurer.position
+        return {LCSMessages.end.value}
     else:
-        ariadnes_thread.append(OppositeDirections[wlrd.adventurer.getFacingDirection()].value)
-    messages = wlrd.adv.sensations
-    messages.add(LCSMessages.track.value)
-    return messages
+        wrld.adventurer.exit_loc = wrld.adventurer.position
+        ariadnes_thread = [wrld.adventurer.getFacingDirection()]
+        env_messages = wrld.adventurer.sensations.copy()
+        messages.add(LCSMessages.tracking.value)
+        messages.discard(EnvironmentMessage.exit_loc.value)
+        return messages
+
+def tracking(messages: set, wrld: Map, ariadnes_thread: list[Directions]) -> set:
+    ariadnes_thread.append([(OppositeDirections[wrld.adventurer.getFacingDirection()].value)])
+    env_messages = wrld.adventurer.sensations.copy()
+    messages.discard(LCSMessages.tracking.value)
+    env_messages.discard(EnvironmentMessage.exit_loc.value)
+    return messages.union(env_messages)
 
 # 1
-def gold_found(wrld: Map, *_) -> set:
+def gold_found(messages: set, wrld: Map, *_) -> set:
     pos = wrld.adventurer.position
     wrld.takeGold(pos[0], pos[1])
     wrld.adventurer.takeGold()
-    return LCSMessages.gold.value
+    env_messages = wrld.adventurer.sensations.copy()
+    messages.add(LCSMessages.gold.value)
+    messages.add(LCSMessages.tracking.value)
+    return messages.union(env_messages)
 
 # 1.5 - If I have gold, I just have to backtrack
-def got_gold(wrld: Map, ariadnes_thread: list[Directions]) -> set:
+def got_gold(messages: set, wrld: Map, ariadnes_thread: list[Directions]) -> set:
     direction = {ariadnes_thread.pop()}
     rotate_and_move(direction, wrld)
-    return LCSMessages.gold.vlaue
+    env_messages = wrld.adventurer.sensations.copy()
+    messages = env_messages
+    return messages.union({LCSMessages.gold.value, LCSMessages.tracking.value})
 
 # 2
-def bump_advance(wrld: Map, *_):
+def bump_advance(messages: set, wrld: Map, *_):
     adj = wrld.adventurer.getAdjacent()
     wrld.adventurer.addMemory(adj[wrld.adventurer.getFacingDirection()], True)
     can_move_to = find_legal_actions(set(), wrld)
     rotate_and_move(can_move_to, wrld)
-    return wrld.adventurer.sensations
+    env_messages = wrld.adventurer.sensations.copy()
+    messages = env_messages
+    #messages.add(LCSMessages.tracking.value)
+    return messages
 
 # 3
-def clear_advance(wrld: Map, *_) -> set:
+def clear_advance(messages: set, wrld: Map, *_) -> set:
     wrld.advance()
-    return wrld.adventurer.sensations
+    env_messages = wrld.adventurer.sensations.copy()
+    messages = env_messages
+    messages.add(LCSMessages.tracking.value)
+    return messages
 
 # 4
-def breeze_advance(wrld: Map, *_) -> set:
+def breeze_advance(messages: set, wrld: Map, *_) -> set:
     if find_prev_cell_visits(wrld) > 1:
         can_move_to = find_legal_actions(set(), wrld)
     else:
         can_move_to = {OppositeDirections[wrld.adventurer.getFacingDirection()].value}
     rotate_and_move(can_move_to, wrld)
-    return wrld.adventurer.sensations
+    env_messages = wrld.adventurer.sensations.copy()
+    messages = env_messages
+    messages.add(LCSMessages.tracking.value)
+    return messages
     
 
 # 5
-def stench_advance(wrld: Map, *_) -> set:
+def stench_advance(messages: set, wrld: Map, *_) -> set:
     adj = wrld.adventurer.getAdjacent()
 
     # If I have arrows, I can attempt to slay the wumpus
@@ -170,7 +191,7 @@ def stench_advance(wrld: Map, *_) -> set:
                 while wrld.adventurer.getFacingDirection() != direction:
                     wrld.rotate("right")
                 wrld.shoot()
-                messages = wrld.adventurer.sensations
+                env_messages = wrld.adventurer.sensations.copy()
                 # 
                 # sub_rules = [
                 #     screamRule, # The wumpus has been slain: I can safely go forward TODO
@@ -182,14 +203,17 @@ def stench_advance(wrld: Map, *_) -> set:
                 #     if rule.matches(messages):
                 #         rule.action(wrld)
                 #         return  
-                return messages
+                return env_messages
     # Otherwise, I just do the same thing as the breezeRule
     if find_prev_cell_visits(wrld) > 1:
         can_move_to = find_legal_actions(set(), wrld)
     else:
         can_move_to = {OppositeDirections[wrld.adventurer.getFacingDirection()].value}
-        rotate_and_move(can_move_to, wrld)
-    return wrld.adventurer.sensations
+    rotate_and_move(can_move_to, wrld)
+    env_messages = wrld.adventurer.sensations.copy()
+    messages = env_messages
+    messages.add(LCSMessages.tracking.value)
+    return messages
 
 def terminate(*_):
     return {LCSMessages.end.value}
@@ -199,8 +223,9 @@ def terminate(*_):
 # Messages generated by the classifier
 class LCSMessages(Enum):
     end = "END"
-    track = "TRACK"
+    #known = "EXIT_KNOWN"
     gold = "GOLD"
+    tracking = "TRACKING"
 
 class LCS():
 
@@ -220,8 +245,8 @@ class LCS():
     )
     
     trackRule = Classifier(
-        condition = {LCSMessages.track.value},
-        action = exit_found
+        condition = {LCSMessages.tracking.value},
+        action = tracking
     )
     
     foundGoldRule = Classifier(
@@ -229,10 +254,14 @@ class LCS():
         action = gold_found
     )
     
-    gotGoldRule = Classifier(
-        condition = {LCSMessages.gold.value},
+    gotGoldBacktrackRule = Classifier(
+        condition = {LCSMessages.gold.value, LCSMessages.tracking.value},
         action = got_gold
     )
+
+    #gotGoldRule = Classifier = Classifier(
+    #    condition = {LCSMessages.gold.value}
+    #)
     
     heardScreamRule = Classifier(
         condition = {EnvironmentMessage.scream.value},
@@ -269,10 +298,11 @@ class LCS():
             self.deathRule,
             self.terminateRule,
             self.exitRule,
-            self.trackRule,
             self.foundGoldRule,
-            self.gotGoldRule,
+            self.gotGoldBacktrackRule,
+            #self.gotGoldRule,
             self.heardScreamRule,
+            self.trackRule,
             self.bumpRule,
             self.stenchRule,
             self.breezeRule,
@@ -280,7 +310,7 @@ class LCS():
         ]
         self.ariadnes_thread = []
         self.wrld = wrld
-        self.message_bucket = wrld.adventurer.sensations
+        self.message_bucket = wrld.adventurer.sensations.copy()
         print("ALL CONDITIONS:")
         for rule in self.ruleset:
             print(f"{self.ruleset.index(rule)}: {rule.condition}")
@@ -290,6 +320,14 @@ class LCS():
         for rule in self.ruleset:
             if rule.matches(self.message_bucket):
                 print(f"APPLYING RULE: {self.ruleset.index(rule)} => {rule.condition}")
-                self.message_bucket = rule.action(self.wrld, self.ariadnes_thread)
+                self.message_bucket = rule.action(self.message_bucket, self.wrld, self.ariadnes_thread)
                 print(f"MESSAGE BUCKET IS NOW: {self.message_bucket}")
                 return
+
+    def runLCS(self):
+        actions = 1
+        while not self.terminateRule.matches(self.message_bucket):
+            print(f"=== ACTION {actions} ===")
+            self.singleStep()
+            actions += 1
+        

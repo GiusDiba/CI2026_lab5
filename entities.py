@@ -73,6 +73,7 @@ class Exit(Entity):
     def __init__(self, row: int, col: int):
         super().__init__("exit_loc", row, col)
         self.symbol = "X"
+        self.side_effect = None
 
 class ProximitySensations():
     nearby_effects: dict

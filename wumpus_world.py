@@ -1,4 +1,4 @@
-from entities import Entity, Wumpus, FreeCell, Pit, Adventurer, Gold, EnvironmentMessage, MovesEffects
+from entities import Entity, Wumpus, FreeCell, Pit, Adventurer, Gold, EnvironmentMessage, MovesEffects, Exit
 
 class Cell():
     effects: dict
@@ -111,6 +111,10 @@ class Map():
                         self.board[row + idx][col].removeEffect(EnvironmentMessage.death.value, amt_removed)
         return removed
 
+    def addExit(self, row: int, col: int):
+        self.insertEntity(Exit(row, col))
+        self.board[row][col].addEffect(EnvironmentMessage.exit_loc.value)
+
     def addAdventurer(self, row: int = 3, col: int = 0, arrows: int = 1, facing: str = "north"):
         adv = Adventurer(row, col, arrows, facing)
         self.insertEntity(adv)
@@ -136,6 +140,7 @@ class Map():
 
     def takeGold(self, row: int, col: int):
         removed = self.removeEntities(Gold, row, col)
+        self.board[row][col].removeEffect(EnvironmentMessage.gold.value, 1)
         for r in removed:
             self.gold_list.remove(r)
         self.sense()
